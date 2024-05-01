@@ -252,7 +252,7 @@ my_car.start()
 
 **L - Liskov substitution Principle** - принцип подстановки Барбары Лисков. Должна быть возможность вместо базового (родительского) типа (класса) подставить любой его подтип (класс-наследник), при этом работа программы не должна измениться.
 
-**I -  Interface Segregation Principle** - принцип разделения интерфейсов. Данный принцип обозначает, что не нужно заставлять клиента (класс) реализовывать интерфейс, который не имеет к нему отношения.
+**I - Interface Segregation Principle** - принцип разделения интерфейсов. Данный принцип обозначает, что не нужно заставлять клиента (класс) реализовывать интерфейс, который не имеет к нему отношения.
 
 **D - Dependency Inversion Principle** - принцип инверсии зависимостей. Модули верхнего уровня не должны зависеть от модулей нижнего уровня. И те, и другие должны зависеть от абстракции. Абстракции не должны зависеть от деталей. Детали должны зависеть от абстракций.
 
@@ -354,3 +354,342 @@ class RentCarService:
         return order
 ```
 Теперь каждый класс несет ответственность только за одну зону и есть только одна причина для его изменения.
+
+**Принцип открытости-закрытости (Open-closed principle)** рассмотрим на примере только что созданного класса по отправке сообщений.
+```python
+class NotificationService:
+    def send_message(self, type_message, message):
+        if type_message == "email":
+            # write email
+            # use smtplib or other email sending library
+            pass
+```
+Допустим нам необходимо кроме отправки сообщения по электронной почте отправлять еще смс сообщения. И мы можем дописать метод sendMessage таким образом:
+```python
+class NotificationService:
+    def send_message(self, type_message, message):
+        if type_message == "email":
+            # write email
+            # use smtplib or other email sending library
+            pass
+        if type_message == "sms":
+            # write sms
+            # send sms
+            pass
+```
+
+Но в данном случае мы нарушим второй принцип, потому что класс должен быть закрыт для модификации, но открыт для расширения, а мы модифицируем (изменяем) метод.
+
+Для того, чтобы придерживаться принципа открытости-закрытости, нам необходимо спроектировать наш код таким образом, чтобы каждый мог повторно использовать нашу функцию, просто расширив ее. Поэтому создадим интерфейс **NotificationService** и в нем поместим метод sendMessage.
+```python
+from abc import ABC, abstractmethod
+
+class NotificationService(ABC):
+    @abstractmethod
+    def send_message(self, message):
+        pass
+```
+
+Далее создадим класс EmailNotification, который имплементит интерфейс NotificationService и реализует метод отправки сообщений по электронной почте.
+```python
+class EmailNotification(NotificationService):
+    def send_message(self, message):
+        # write email
+        # use smtplib or other email sending library
+        pass
+```
+Создадим аналогично класс MobileNotification, который будет отвечать за отправку смс сообщений.
+```python
+class MobileNotification(NotificationService):
+    def send_message(self, message):
+        # write sms
+        # send sms
+        pass
+```
+
+Давайте сейчас рассмотрим третий принцип: принцип **подстановки Барбары Лисков (Liskov substitution Principle)**.
+
+Данный принцип непосредственно связан с наследованием классов. Допустим у нас есть базовый класс Счет (Account), в котором есть три метода: просмотр остатка на счете, пополнение счета и оплата.
+```python
+from abc import ABC, abstractmethod
+
+class Account(ABC):
+    @abstractmethod
+    def balance(self, account_number):
+        pass
+    
+    @abstractmethod
+    def refill(self, account_number, amount):
+        pass
+    
+    @abstractmethod
+    def payment(self, account_number, amount):
+        pass
+```
+
+Нам необходимо написать еще два класса: зарплатный счет и депозитный счет, при этом зарплатный счет должен поддерживать все операции, представленные в базовом классе, а депозитный счет - не должен поддерживать проведение оплаты.
+```python
+from decimal import Decimal
+class SalaryAccount(Account):
+    def balance(self, account_number):
+        # logic
+        return Decimal(0)  # placeholder for balance
+        
+    def refill(self, account_number, amount):
+        # logic
+        pass
+        
+    def payment(self, account_number, amount):
+        # logic
+        pass
+
+class DepositAccount(Account):
+    def balance(self, account_number):
+        # logic
+        return Decimal(0)  # placeholder for balance
+        
+    def refill(self, account_number, amount):
+        # logic
+        pass
+        
+    def payment(self, account_number, amount):
+        raise NotImplementedError("Operation not supported")
+```
+
+Если сейчас в коде программы везде, где мы использовали класс **Account** заменить на его класс-наследник (подтип) **SalaryAccount**, то программа продолжит нормально работать, так как в классе SalaryAccount доступны все операции, которые есть и в классе **Account**.
+
+Если же мы такое попробуем сделать с классом **DepositAccount**, то есть заменим базовый класс **Account** на его класс-наследник **DepositAccount**, то программа начнет неправильно работать, так как при вызове метода `payment()` будет выбрасываться исключение `new UnsupportedOperationException`. Таким образом произошло нарушение принципа подстановки Барбары Лисков.
+
+Для того чтобы следовать принципу подстановки Барбары Лисков, необходимо в базовый (родительский) класс выносить только общую логику, характерную для классов наследников, которые будут ее реализовывать и, соответственно, можно будет базовый класс без проблем заменить на его класс-наследник.
+
+В нашем случае класс **Account** будет выглядеть следующим образом.
+```python
+from decimal import Decimal
+
+class Account:
+    def balance(self, account_number):
+        # логика получения баланса
+        return Decimal(0)  # возвращаем заглушку для баланса
+        
+    def refill(self, account_number, amount):
+        # логика пополнения счета
+        pass
+```
+
+Мы сможем от него наследовать класс **DepositAccount**.
+```python
+from decimal import Decimal
+from account import Account
+
+class DepositAccount(Account):
+    def balance(self, account_number):
+        # логика для получения баланса депозитного счета
+        return Decimal(0)  # возвращаем заглушку для баланса
+    
+    def refill(self, account_number, amount):
+        # логика для пополнения депозитного счета
+        pass
+```
+
+Создадим дополнительный класс **PaymentAccount**, который унаследуем от **Account** и его расширим методом проведения оплаты.
+```python
+from account import Account
+
+class PaymentAccount(Account):
+    def payment(self, account_number, amount):
+        # логика для проведения платежа
+        pass
+```
+И наш класс **SalaryAccount** уже унаследуем от класса **PaymentAccount**.
+```python
+from decimal import Decimal
+from payment_account import PaymentAccount
+
+class SalaryAccount(PaymentAccount):
+    def balance(self, account_number):
+        # логика для получения баланса зарплатного счета
+        return Decimal(0)
+        
+    def refill(self, account_number, amount):
+        # логика для пополнения зарплатного счета
+        pass
+        
+    def payment(self, account_number, amount):
+        # логика для проведения платежа со зарплатного счета
+        pass
+```
+
+Сейчас замена класса PaymentAccount на его класс-наследник SalaryAccount не "поломает" нашу программу, так как класс **SalaryAccount** имеет доступ ко всем методам, что и **PaymentAccount**. Также все будет хорошо при замене класса Account на его класс-наследник **PaymentAccount**.
+
+Принцип **подстановки Барбары Лисков** заключается в правильном использовании отношения наследования. Мы должны создавать наследников какого-либо базового класса тогда и только тогда, когда они собираются правильно реализовать его логику, не вызывая проблем при замене родителей на наследников.
+
+### Рассмотрим теперь принцип **разделения интерфейсов**.
+
+Допустим у нас имеется интерфейс **Payments** и в нем есть три метода: оплата _WebMoney_, _оплата банковской карточкой_ и _оплата по номеру телефона_.
+```python
+from abc import ABC, abstractmethod
+
+class Payments(ABC):
+    @abstractmethod
+    def pay_webmoney(self):
+        pass
+    
+    @abstractmethod
+    def pay_credit_card(self):
+        pass
+    
+    @abstractmethod
+    def pay_phone_number(self):
+        pass
+```
+
+Далее нам надо реализовать два класса-сервиса, которые будут у себя реализовывать различные виды проведения оплат (класс **InternetPaymentService** и **TerminalPaymentService**). При этом **TerminalPaymentService** не будет поддерживать проведение оплат по номеру телефона. Но если мы оба класса имплементим от интерфейса **Payments**, то мы будем "заставлять" **TerminalPaymentService** реализовывать метод, который ему не нужен.
+```python
+from payments import Payments  # предположим, что у вас есть модуль payments, содержащий интерфейс Payments
+
+class InternetPaymentService(Payments):
+    def pay_webmoney(self):
+        # логика оплаты через WebMoney
+        pass
+    
+    def pay_credit_card(self):
+        # логика оплаты кредитной картой
+        pass
+    
+    def pay_phone_number(self):
+        # логика оплаты по номеру телефона
+        pass
+
+class TerminalPaymentService(Payments):
+    def pay_webmoney(self):
+        # логика оплаты через WebMoney
+        pass
+    
+    def pay_credit_card(self):
+        # логика оплаты кредитной картой
+        pass
+    
+    def pay_phone_number(self):
+        # логика оплаты по номеру телефона
+        pass
+```
+Таким образом произойдет нарушение принципа разделения интерфейсов.
+
+Для того чтобы этого не происходило необходимо разделить наш исходный интерфейс **Payments** на несколько и, создавая классы, имплементить в них только те интерфейсы с методами, которые им нужны.
+
+```python
+from abc import ABC, abstractmethod
+
+class WebMoneyPayment(ABC):
+    @abstractmethod
+    def pay_webmoney(self):
+        pass
+
+class CreditCardPayment(ABC):
+    @abstractmethod
+    def pay_credit_card(self):
+        pass
+
+class PhoneNumberPayment(ABC):
+    @abstractmethod
+    def pay_phone_number(self):
+        pass
+```
+
+```python
+from webmoney_payment import WebMoneyPayment 
+from creditcard_payment import CreditCardPayment
+from phonenumber_payment import PhoneNumberPayment
+
+class InternetPaymentService(WebMoneyPayment, CreditCardPayment, PhoneNumberPayment):
+    def pay_webmoney(self):
+        # логика оплаты через WebMoney
+        pass
+    
+    def pay_credit_card(self):
+        # логика оплаты кредитной картой
+        pass
+    
+    def pay_phone_number(self):
+        # логика оплаты по номеру телефона
+        pass
+```
+```python
+from webmoney_payment import WebMoneyPayment 
+from creditcard_payment import CreditCardPayment
+
+class TerminalPaymentService(WebMoneyPayment, CreditCardPayment):
+    def pay_webmoney(self):
+        # логика оплаты через WebMoney
+        pass
+    
+    def pay_credit_card(self):
+        # логика оплаты кредитной картой
+        pass
+```
+
+### Принцип инверсии зависимостей (Dependency Inversion Principle)
+Давайте сейчас рассмотрим последний принцип: **принцип инверсии зависимостей**.
+
+Допустим мы пишем приложение для магазина и решаем вопросы с проведением оплат. Вначале это просто небольшой магазин, где оплата происходит только за наличные. Создаем класс Cash и класс Shop.
+```python
+from decimal import Decimal
+
+class Cash:
+    def do_transaction(self, amount):
+        # логика транзакции
+        pass
+
+class Shop:
+    def __init__(self, cash):
+        self.cash = cash
+    
+    def do_payment(self, order, amount):
+        self.cash.do_transaction(amount)
+```
+
+Вроде все хорошо, но мы уже нарушили принцип инверсии зависимостей, так как мы тесно связали оплату наличными к нашему магазину. И если в дальнейшем нам необходимо будет добавить оплату еще банковской картой и телефоном ("100% понадобится"), то нам придется переписывать и изменять много кода. Мы в нашем коде модуль верхнего уровня тесно связали с модулем нижнего уровня, а нужно чтобы оба уровня зависели от абстракции.
+
+Поэтому создадим интерфейс **Payments**.
+```python
+from abc import ABC, abstractmethod
+from decimal import Decimal
+
+class Payments(ABC):
+    @abstractmethod
+    def do_transaction(self, amount):
+        pass
+```
+
+Теперь все наши классы по оплате будут имплементить данный интерфейс.   
+```python
+class Cash(Payments):
+    def do_transaction(self, amount):
+        # логика для оплаты наличными
+        pass
+
+class BankCard(Payments):
+    def do_transaction(self, amount):
+        # логика для оплаты банковской картой
+        pass
+
+class PayByPhone(Payments):
+    def do_transaction(self, amount):
+        # логика для оплаты через телефон
+        pass
+```
+
+Теперь надо перепроектировать реализацию нашего магазина.
+```python
+class Shop:
+    def __init__(self, payments):
+        self.payments = payments
+    
+    def do_payment(self, order, amount):
+        self.payments.do_transaction(amount)
+```
+
+Сейчас наш магазин слабо связан с системой оплаты, то есть он зависит от абстракции и уже не важно каким способом оплаты будут пользоваться (наличными, картой или телефоном) все будет работать.
+
+## WEB компонента
+Теперь перейдём к Web-составляющей нашей подготовки (Django, DjangoREST, MVC, Migrations, ORM, PostgreSQL, HTTP, Rest, SOAP)
