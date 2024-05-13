@@ -1,4 +1,4 @@
-# В этом репозитории вы можете посмотреть мой процесс познания и получения оффера на должность Middle Python Backend Dev'a в компанию <a href="agora.ru"> Agora </a>
+# В этом репозитории вы можете посмотреть мой процесс познания и получения оффера на должность Middle Python Backend Dev'a в компанию <a href="https://agora.ru"> agora.ru </a>
 ![img.png](img%2Fimg.png)
 
 
