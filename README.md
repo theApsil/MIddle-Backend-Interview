@@ -804,3 +804,203 @@ def upload_image(request):
 ```
 ## WEB компонента
 Выше мы с вами уже затронули тему интеграций различных фреймворков внутрь Web-приложений на Django, пришла пора перейти к Web-составляющей нашей подготовки (Django, DjangoREST, MVC, Migrations, ORM, PostgreSQL, HTTP, Rest, SOAP)
+Coming soon ...
+
+
+# Вопросы перед собеседованием
+
+## Общие вопросы
+##### Вопрос: Что такое агрегация запроса?
+Когда несколько запросов или операций внутри одного запроса объединяются в один и выполняются. Пример:
+
+Вот пример использования агрегации запроса в Django для подсчета количества объектов модели:
+
+```python
+from django.db.models import Count
+from myapp.models import Order
+
+order_count_per_customer = Order.objects.values('customer_id').annotate(order_count=Count('id'))
+
+for item in order_count_per_customer:
+    print(f"Customer ID: {item['customer_id']} - Order Count: {item['order_count']}")
+```
+##### Вопрос: Что такое репликация Базы Данных?
+Репликация - это процесс создания и поддержания точной копии (реплики) данных из одной базы данных в другой или нескольких базах данных. 
+
+Для чего нужно: снизить нагрузку на БД, увеличить отказоусточивость.
+
+##### Вопрос: В чём отличие мета-класса и класса Meta?
+Мета-класс управляет созданием классов их атрибутов и методов, а класс **Meta** содержит дополнительные данные или настройки для другого класса.
+
+## Усложнённые вопросы
+##### Вопрос: Какие виды миграций существуют? Что используется в джанге для миграций?
+На django версии < 1.7 для миграций используется отдельный пакет south миграции, после 1.7 используется свой модуль миграции.
+
+`migrations`
+`makemigrations`
+`SQLmigrate`
+
+Миграции бывают 2х видов
+1. Полная миграция (например накат на основную базу согласно графика)
+2. Версионная (например ежедневное обновление тестового стенда)
+
+##### Вопрос: Сколько запросов будет сделано к базе данных?
+ 
+```python 
+Order.objects.create(
+    status=Order.ACTIVE
+)
+ 
+queryset = Order.objects.filter(status=Order.ACTIVE)
+queryset = queryset.annotate(max_status=Max('status'))
+ 
+if queryset.count():
+    print(queryset.aggregate(Min('status')))
+```
+<br>
+<br>
+<br>
+<br>
+<br>
+
+1. Запрос на вставку нового Order со статусом ACTIVE
+2. Подсчёт количества записей `queryset.count()`
+3. Вычисление минимального значения в отфильтрованом и аннотированном `queryset`
+
+##### Вопрос: Что такое select_related и prefetch_related, для чего, отличия, целесообразность использования. Как влияет на производительность?
+`select_related` - с помощью него можно обходить доп запросы с помощью SQL JOIN стандартного
+
+`prefetch_related` - помогает решать проблему N + 1 запроса, загружает все объекты в память и связывает их с основным объектом
+
+##### Вопрос: Middleware (context processors), что такое и с чем едят. В каком случае целесообразно использовать? Почему стоит использовать осторожно?
+Механизмы в Django, позволяет изменять запросы либо до того как они попадут во view, или после того как они из неё вышли. Удобно передавать данные в шаблоны (больше хз).
+Не стоит ими увлекаться, иначе либо слишком сложная логика будет, либо засрёт контекст шаблонов. Использовать их тоже нужно аккуратно, т.к. они на каждом запросе выполняются.
+
+##### Вопрос: Сколько таблиц в базе данных будет создано? Что такое абстрактные модели и прокси-модели? Чем отличаются? 
+```python
+class ModelA(models.Model):
+    name = models.CharField(max_length=255)
+    class Meta:
+        abstract = True
+ 
+ 
+class ModelB(ModelA):
+    pass
+ 
+ 
+class ModelC(ModelB):
+    class Meta:
+        proxy = True
+```
+
+Создастся 1 таблица, она будет соответствовать ModelB. ModelA - абстрактная модель, ModelC - прокси-модель.
+
+Абстрактные модель удобны при определении общих, для нескольких моделей, полей. Вы создаете базовую модель и добавляете abstract=True в класс Meta. Для этой модели не будет создана таблица в базе данных. Используя эту модель как родительскую для другой модели - все ее поля будут добавлены в таблицу в базе данных для этой модели. Вы можете создать, изменить или обновить объект proxy модели и все изменения будут сохранены так же, как и при изменении оригинальной(non-proxied) модели. Разница в том, что вы можете изменить сортировку по-умолчанию или менеджер по-умолчанию в proxy-модели, без изменения оригинальной модели.
+
+
+##### Вопрос: Допустим, есть следующие модели и тебе необходимо создать 1000 заказов с привязкой к тем или иным пользователям и продуктам, а также создать накладные по созданным заказам:
+
+```python
+class User(models.Model):
+    name = models.CharField(max_length=200)
+ 
+class Product(models.Model):
+    name = models.CharField(max_length=200)
+ 
+class Order(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.IntegerField()
+ 
+class OrderInvoice(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE)
+    date_created = models.DateField(auto_now_add=True)
+    comment = models.CharField(max_length=200)
+```
+
+Есть код, который выполняет эти действия:
+```python
+users = User.objects.all()
+products = Product.objects.all()
+ 
+for _ in range(1000):
+    user = random.choice(users)
+    product = random.choice(products)
+    order = Order.objects.create(user=user, product=product, quantity=random.randint(1, 10))
+    OrderInvoice.objects.create(order=order, comment="Случайная накладная")
+```
+
+Проблема в том, что код не оптимизирован и в этом случае будет 2k запросов. А в случае увеличения кол-ва заказов будет расти и количество запросов. Необходимо максимально сократить количество запросов при создании 1000 заказов и накладных заказов.
+
+Решение ооочень простое - `bulk create`
+
+Функция `bulk_create` в Django - это метод для эффективного создания большого количества объектов модели за один раз. Он принимает список объектов, которые нужно создать, и добавляет их все в базу данных одной операцией. Это может быть намного быстрее, чем создание каждого объекта по отдельности.
+```python
+created_orders = Order.objects.bulk_create(orders_to_create)
+
+for order in created_orders:
+    invoice = OrderInvoice(order=order, comment="Случайная накладная")
+    invoices_to_create.append(invoice)
+
+OrderInvoice.objects.bulk_create(invoices_to_create)
+```
+
+##### Вопрос: Пояснить как работает код.
+```python
+with transaction.atomic():
+    log = Log.objects.create(message='Start transaction')
+    
+    def inner():
+        log.message = 'Start thread'
+        log.save()
+    
+    threading.Thread(target=inner).start()
+    time.sleep(10)
+```
+
+Код будет завершен ошибкой "IntegrityError: duplicate key value violates unique constraint" в 6й строке. Так произойдет по той причине, что весь код, обернут в atomic то есть, создание лога во второй строке не будет закомичено в БД, до окончания выполнения блока atomic который будет завершен через 10 секунд. Функция inner запущенная в отдельном потоке будет выполнена немедленно. И так как на каждый отдельный поток джанга создает отдельный сеанс в бд, внутри этого сеанса еще не будет информации о том что лог был создан, так как эти изменения еще не зафиксированы, поэтому будет выполнен INSERT с тем же PK что уже зарезервирован постгресом.
+
+##### Вопрос: Представим, что в БД оооочень много заказов и скрипт выполняется около 6 минут. Как его оптимизировать?
+```python
+tmp_uuids = []
+for order in Order.objects.all():
+    if order.internal_uuid not in tmp_uuids:
+        OrderInvoice.objects.create(order_uuid=order.internal_uuid)
+        tmp_uuids.append(order.internal_uuid)
+```
+
+Тут на удивление очень простой ответ - `values_list`
+
+С помощью него в Django можно получать не полную модель, а только нужные значения, в нашем случае нам нужны уникальные поля из `internal_uuid`, а flat=True вернёт нам ответ как список.
+
+```python
+unique_uuids = Order.objects.values_list('internal_uuid', flat=True).distinct()
+
+for uuid in unique_uuids:
+    OrderInvoice.objects.create(order_uuid=uuid)
+```
+
+##### Локализации в Django
+* Как работает? 
+* Как активировать? 
+* Знает ли за что отвечают настройки USE_I18N и USE_I10N?
+* Чем отличается ugettext от ugettext_lazy в каком случае применять функции?
+* Как добавить перевод в файлы локализации, формат строк для вычисляемых полей?
+* Как скомпилировать переводы?
+```
+Активируется путем USE_I18N. 
+Для указания языков используем константу LANGUAGES, дефолтный язык задаем в DEFAULT_LANGUAGES
+Для перевода текста в django используем {% trans "<тут текст для перевода" %}
+Для перевода в js используем gettext.
+Переводы составляем в .po файлах, в них описываем перевод текста из {% trans %} или gettext.
+Пример:
+#: route/my-app.js:10
+msgid "Закрыть"
+msgstr "Закрыть"
+
+ USE_I10N - это если не ошибаюсь переводит время правильно под разные языки
+ 
+ ugettext - переводит сразу, ugettext_lazy - переводит только при отправке ответа. Крч ленивый перевод и обычный)
+ 
+ Переводы компилируются через python ./manage.py compilemessages
+```
